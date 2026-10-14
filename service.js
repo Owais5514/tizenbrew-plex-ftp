@@ -202,17 +202,17 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify(data));
   };
 
-  const readBody = () => new Promise((resolve, reject) => {
+  const readBody = () => new Promise((resolve) => {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        resolve(body ? JSON.parse(body) : {});
+        resolve(body && body.trim() ? JSON.parse(body) : {});
       } catch (e) {
-        reject(e);
+        resolve({});
       }
     });
-    req.on('error', reject);
+    req.on('error', () => resolve({}));
   });
 
   try {
@@ -431,9 +431,9 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/auth/anilist' && req.method === 'GET') {
       const sid = parsedUrl.query.sid || '';
       const token = parsedUrl.query.token || parsedUrl.query.access_token || '';
-      if (token && sid) {
-        const ok = await anilist.completeAuthSession(sid, token);
-        if (ok) {
+      if (token) {
+        const result = await anilist.completeAuthSession(sid, token);
+        if (result && result.success) {
           appSettings.anilistToken = token;
           saveSettings(appSettings);
         }
@@ -477,15 +477,14 @@ const server = http.createServer(async (req, res) => {
     // API: Receive Token from Mobile Auth Page
     if (pathname === '/api/auth/anilist/token' && req.method === 'POST') {
       const body = await readBody();
-      if (!body.sid || !body.token) return sendJson(400, { error: 'sid and token required' });
-      const ok = await anilist.completeAuthSession(body.sid, body.token);
-      if (ok) {
+      if (!body.token) return sendJson(400, { error: 'token required' });
+      const result = await anilist.completeAuthSession(body.sid || '', body.token);
+      if (result && result.success) {
         appSettings.anilistToken = body.token;
         saveSettings(appSettings);
-        const user = await anilist.getViewer(body.token);
-        return sendJson(200, { success: true, user });
+        return sendJson(200, { success: true, user: result.user });
       }
-      return sendJson(400, { error: 'Session expired or invalid token' });
+      return sendJson(400, { error: (result && result.error) || 'Invalid AniList token or session expired' });
     }
 
     // API: Get Current AniList User & Tracked Library

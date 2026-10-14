@@ -188,6 +188,18 @@ class SettingsController {
       this.qrContainer.innerHTML = data.qrSvg;
       this.qrUrlText.textContent = data.mobileUrl;
       this.qrUrlText.href = data.mobileUrl;
+
+      const openTabBtn = document.getElementById('btn-open-browser-tab');
+      if (openTabBtn) {
+        openTabBtn.onclick = () => {
+          let targetUrl = data.mobileUrl;
+          if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            targetUrl = `http://${window.location.host}/auth/anilist?sid=${data.sid}`;
+          }
+          window.open(targetUrl, '_blank');
+        };
+      }
+
       this.qrModal.classList.remove('hidden');
 
       window.nav.focus(this.qrCloseBtn);
