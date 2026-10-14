@@ -1,11 +1,11 @@
 {
   "name": "tizenflix",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "appName": "TizenFlix",
   "description": "A cinematic video player for Samsung Tizen TVs that streams directly from FTP and network storage.",
   "packageType": "app",
   "appPath": "public/index.html",
-  "serviceFile": "service.js",
+  "evaluateScriptOnDocumentStart": false,
   "main": "service.js",
   "author": "Owais5514",
   "license": "MIT",
