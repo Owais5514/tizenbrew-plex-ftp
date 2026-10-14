@@ -17,7 +17,12 @@ if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
 }
 
-// Load default or saved settings
+// System/cache directories to skip during recursive scan to ensure high speed
+const SKIP_DIRS = new Set([
+  'Android', 'tencent', 'OSSLog', 'apminsight', 'monitor', 'qvs', 'apm',
+  'Facebook Messenger', 'Voice Recorder', 'Backups', '.thumbnails', '$RECYCLE.BIN'
+]);
+
 function loadSettings() {
   const defaults = {
     host: '127.0.0.1',
@@ -51,7 +56,6 @@ function saveSettings(settings) {
   }
 }
 
-// Load and save playback progress
 function loadProgress() {
   try {
     if (fs.existsSync(PROGRESS_FILE)) {
@@ -81,13 +85,11 @@ function saveProgress(fileId, data) {
 let appSettings = loadSettings();
 const tmdb = new TmdbService(appSettings.tmdbApiKey);
 
-// In-memory media cache to avoid repeated FTP directory scans
 let mediaCache = {
   items: [],
   lastScan: 0
 };
 
-// Create a new FTP client from current settings
 function createFtpClient(overrideConfig = null) {
   const cfg = overrideConfig || appSettings;
   return new SimpleFtpClient({
@@ -96,12 +98,12 @@ function createFtpClient(overrideConfig = null) {
     user: cfg.user,
     password: cfg.password,
     secure: Boolean(cfg.secure),
-    timeout: 10000
+    timeout: 12000
   });
 }
 
 /**
- * Recursively scan FTP directory for video files (up to maxDepth).
+ * Recursively scan FTP directory for video files.
  */
 async function scanFtpDirectory(ftp, remoteDir, depth = 0, maxDepth = 4) {
   if (depth > maxDepth) return [];
@@ -111,8 +113,7 @@ async function scanFtpDirectory(ftp, remoteDir, depth = 0, maxDepth = 4) {
     const list = await ftp.list(remoteDir);
     for (const item of list) {
       if (item.isDirectory) {
-        // Skip common hidden or non-media folders
-        if (item.name.startsWith('.') || item.name.toLowerCase() === '$recycle.bin') continue;
+        if (item.name.startsWith('.') || SKIP_DIRS.has(item.name)) continue;
         const subVideos = await scanFtpDirectory(ftp, item.path, depth + 1, maxDepth);
         foundVideos.push(...subVideos);
       } else if (MediaScanner.isVideo(item.name)) {
@@ -123,13 +124,12 @@ async function scanFtpDirectory(ftp, remoteDir, depth = 0, maxDepth = 4) {
       }
     }
   } catch (err) {
-    console.warn(`Scan error in ${remoteDir}:`, err.message);
+    console.warn(`Scan warning at ${remoteDir}:`, err.message);
   }
 
   return foundVideos;
 }
 
-// MIME types for video streaming and static assets
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -147,7 +147,6 @@ const MIME_TYPES = {
 };
 
 const server = http.createServer(async (req, res) => {
-  // CORS headers so Tizen webview or external browser can talk to API
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Range, Authorization');
@@ -161,13 +160,11 @@ const server = http.createServer(async (req, res) => {
   const parsedUrl = url.parse(req.url, true);
   const pathname = parsedUrl.pathname;
 
-  // JSON helper
   const sendJson = (statusCode, data) => {
     res.writeHead(statusCode, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(data));
   };
 
-  // Read request body helper
   const readBody = () => new Promise((resolve, reject) => {
     let body = '';
     req.on('data', chunk => body += chunk);
@@ -194,9 +191,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Get Settings
     if (pathname === '/api/settings' && req.method === 'GET') {
-      const safe = { ...appSettings };
-      // Keep password for TV remote ease, or mask if needed
-      return sendJson(200, safe);
+      return sendJson(200, { ...appSettings });
     }
 
     // API: Save Settings
@@ -205,7 +200,6 @@ const server = http.createServer(async (req, res) => {
       appSettings = { ...appSettings, ...newSettings };
       saveSettings(appSettings);
       tmdb.setApiKey(appSettings.tmdbApiKey || '');
-      // Clear cache on config change
       mediaCache.items = [];
       mediaCache.lastScan = 0;
       return sendJson(200, { success: true, settings: appSettings });
@@ -217,14 +211,16 @@ const server = http.createServer(async (req, res) => {
       const testClient = createFtpClient(testConfig);
       try {
         await testClient.connect();
-        const rootItems = await testClient.list(testConfig.path || '/');
+        const testDir = (testConfig.path && testConfig.path !== '/') ? testConfig.path : (testClient.workingDirectory || '/');
+        const rootItems = await testClient.list(testDir);
         const videoCount = rootItems.filter(i => !i.isDirectory && MediaScanner.isVideo(i.name)).length;
         const dirCount = rootItems.filter(i => i.isDirectory).length;
         testClient.destroy();
 
         return sendJson(200, {
           success: true,
-          message: `Connected successfully! Found ${dirCount} folders and ${videoCount} videos in ${testConfig.path || '/'}`
+          workingDirectory: testClient.workingDirectory,
+          message: `Connected successfully! Starting directory: ${testDir} (${dirCount} folders, ${videoCount} videos found)`
         });
       } catch (err) {
         testClient.destroy();
@@ -239,7 +235,6 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/scan' && req.method === 'GET') {
       const forceRefresh = parsedUrl.query.refresh === 'true';
 
-      // Use cache if within 5 minutes and not forced
       if (!forceRefresh && mediaCache.items.length > 0 && (Date.now() - mediaCache.lastScan) < 300000) {
         return sendJson(200, formatLibraryResponse(mediaCache.items));
       }
@@ -247,11 +242,11 @@ const server = http.createServer(async (req, res) => {
       const ftp = createFtpClient();
       try {
         await ftp.connect();
-        const rootDir = appSettings.path || '/';
+        const rootDir = (appSettings.path && appSettings.path !== '/') ? appSettings.path : (ftp.workingDirectory || '/');
+        console.log(`[Scan] Scanning starting from: ${rootDir}`);
         const rawVideos = await scanFtpDirectory(ftp, rootDir);
         ftp.destroy();
 
-        // Enrich with TMDB metadata if API key configured
         if (appSettings.tmdbApiKey) {
           for (const item of rawVideos) {
             const meta = await tmdb.search(item.title, item.year, item.isTvShow);
@@ -267,6 +262,7 @@ const server = http.createServer(async (req, res) => {
         mediaCache.items = rawVideos;
         mediaCache.lastScan = Date.now();
 
+        console.log(`[Scan] Completed! Found ${rawVideos.length} total videos.`);
         return sendJson(200, formatLibraryResponse(rawVideos));
       } catch (err) {
         ftp.destroy();
@@ -276,10 +272,13 @@ const server = http.createServer(async (req, res) => {
 
     // API: Browse raw folder
     if (pathname === '/api/browse' && req.method === 'GET') {
-      const targetDir = parsedUrl.query.path || appSettings.path || '/';
       const ftp = createFtpClient();
       try {
         await ftp.connect();
+        let targetDir = parsedUrl.query.path;
+        if (!targetDir || targetDir === '/') {
+          targetDir = (appSettings.path && appSettings.path !== '/') ? appSettings.path : (ftp.workingDirectory || '/');
+        }
         const list = await ftp.list(targetDir);
         ftp.destroy();
 
@@ -325,12 +324,11 @@ const server = http.createServer(async (req, res) => {
       return sendJson(400, { error: 'Missing fileId' });
     }
 
-    // API: Subtitle Fetching (Convert SRT -> WebVTT on the fly)
+    // API: Subtitle Fetching (Convert SRT -> WebVTT)
     if (pathname === '/api/subtitle' && req.method === 'GET') {
       const videoPath = parsedUrl.query.file;
       if (!videoPath) return sendJson(400, { error: 'file param required' });
 
-      // Look for same filename with .srt or .vtt
       const ext = path.extname(videoPath);
       const srtPath = videoPath.substring(0, videoPath.length - ext.length) + '.srt';
 
@@ -342,7 +340,6 @@ const server = http.createServer(async (req, res) => {
         subStream.stream.on('data', chunk => srtData += chunk.toString('utf8'));
         subStream.stream.on('end', () => {
           ftp.destroy();
-          // Convert SRT to WebVTT
           const vttData = 'WEBVTT\n\n' + srtData.replace(/(\d{2}:\d{2}:\d{2}),(\d{3})/g, '$1.$2');
           res.writeHead(200, {
             'Content-Type': 'text/vtt; charset=utf-8',
@@ -350,7 +347,7 @@ const server = http.createServer(async (req, res) => {
           });
           res.end(vttData);
         });
-        subStream.stream.on('error', (e) => {
+        subStream.stream.on('error', () => {
           ftp.destroy();
           res.writeHead(404);
           res.end();
@@ -363,7 +360,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // API: Video Streaming Proxy with HTTP Range Requests!
+    // API: Video Streaming Proxy with HTTP Range Requests
     if (pathname === '/api/stream' && req.method === 'GET') {
       const filePath = parsedUrl.query.file;
       if (!filePath) {
@@ -381,7 +378,6 @@ const server = http.createServer(async (req, res) => {
       const contentType = MIME_TYPES[ext] || 'video/mp4';
 
       if (rangeHeader) {
-        // e.g. "bytes=1048576-" or "bytes=1048576-2097151"
         const parts = rangeHeader.replace(/bytes=/, '').split('-');
         const start = parseInt(parts[0], 10) || 0;
         const end = parts[1] ? parseInt(parts[1], 10) : (totalSize > 0 ? totalSize - 1 : start + 10485760);
@@ -400,7 +396,6 @@ const server = http.createServer(async (req, res) => {
 
         ftpStreamInfo.stream.pipe(res);
 
-        // Abort FTP socket on client disconnect (e.g. user seeking or navigating away)
         req.on('close', () => {
           ftp.destroy();
         });
@@ -423,7 +418,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // Serve Static UI Files (from public directory)
+    // Serve Static UI Files
     let safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
     if (safePath === '/' || safePath === '\\') safePath = '/index.html';
     const filePath = path.join(PUBLIC_DIR, safePath);
@@ -436,7 +431,6 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // 404 Fallback
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   } catch (err) {
@@ -448,7 +442,6 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-// Helper: Organize scanned media items into Plex categories
 function formatLibraryResponse(items) {
   const progress = loadProgress();
 

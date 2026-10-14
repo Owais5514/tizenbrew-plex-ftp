@@ -339,6 +339,10 @@ class PlexApp {
     try {
       const res = await fetch(`/api/browse?path=${encodeURIComponent(folderPath)}`);
       const data = await res.json();
+      if (data.path) {
+        this.currentFolder = data.path;
+        document.getElementById('current-folder-path').textContent = data.path;
+      }
       container.innerHTML = '';
 
       if (!data.items || data.items.length === 0) {
