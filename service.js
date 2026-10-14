@@ -190,7 +190,7 @@ const server = http.createServer(async (req, res) => {
     if (pathname === '/api/status' && req.method === 'GET') {
       return sendJson(200, {
         status: 'online',
-        server: 'PlexFTP Backend',
+        server: 'TizenFlix Backend',
         version: '1.0.0',
         configured: Boolean(appSettings.host && appSettings.host !== '127.0.0.1')
       });
@@ -558,7 +558,7 @@ function formatLibraryResponse(items) {
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`===============================================`);
-  console.log(`🎬 Plex FTP Player Backend running on port ${PORT}`);
+  console.log(`🎬 TizenFlix Backend running on port ${PORT}`);
   console.log(`📺 TV Access: http://127.0.0.1:${PORT}`);
   console.log(`===============================================`);
 });

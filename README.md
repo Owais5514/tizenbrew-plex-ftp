@@ -1,20 +1,21 @@
-# 🎬 Plex FTP Player for TizenBrew (Samsung Tizen OS)
+# 🎬 TizenFlix for TizenBrew (Samsung Tizen OS)
 
-A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew](https://github.com/reisxd/TizenBrew)** on **Samsung Smart TVs**. It streams and indexes video files directly from any standard **FTP / FTPS server** (seedbox, NAS, home server, or router USB drive) with custom HTTP Byte-Range streaming, auto-subtitles, watch progress persistence, and full TV remote control support.
+A sleek, cinematic video player designed to run directly inside **[TizenBrew](https://github.com/reisxd/TizenBrew)** on **Samsung Smart TVs**. It streams and indexes video files directly from any standard **FTP / FTPS server** (Android phone hotspot, seedbox, NAS, home server, or router USB storage) with built-in HTTP Byte-Range streaming, auto-subtitles, watch progress persistence, and full TV remote control support.
 
 ---
 
 ## ✨ Features
 
-- **Plex-Style TV Interface:**
-  - Dark cinematic aesthetic with dynamic ambient background glow based on the highlighted title.
+- **Cinematic TV Interface:**
+  - Dark aesthetic with dynamic ambient background glow based on the highlighted title.
   - Sidebar navigation (**Home**, **Movies**, **TV Shows**, **Folder Browser**, **Settings**).
   - Horizontal carousels with smooth scrolling: **Continue Watching**, **Recently Added**, **Movies**, **TV Shows**.
   - Poster cards with video quality badges (`4K`, `1080p`, `720p`), release year, file size, and watch progress bars.
 - **Pure Node.js FTP Streaming Proxy (`service.js`):**
   - Modern web engines in Smart TVs do not support `ftp://` in HTML5 `<video>` tags.
-  - PlexFTP includes a background Node.js service that translates HTTP `Range: bytes=X-Y` requests into FTP `REST` and `RETR` commands.
+  - TizenFlix includes a background Node.js service that translates HTTP `Range: bytes=X-Y` requests into FTP `REST` and `RETR` commands.
   - Full support for **seeking, pausing, rewinding, and buffer caching** on the TV.
+  - Automatic stream controller to handle single-port mobile FTP servers (e.g. Android phone hotspot servers) without socket collision on rapid seeking.
 - **TV Remote Control & Spatial Navigation (`nav.js`):**
   - Native 2D spatial navigation for remote D-pads (Up, Down, Left, Right, Enter).
   - Tizen Return / Back button (`keyCode 10009`) smoothly exits modals, player, or returns to sidebar.
@@ -22,7 +23,7 @@ A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew
 - **Custom TV Video Player & OSD (`player.js`):**
   - Fullscreen video playback (`.mp4`, `.mkv`, `.webm`, `.mov`, `.ts`, `.m4v`).
   - Interactive OSD timeline, buffer indicator, elapsed/remaining duration.
-  - Quick 10-second skip forward/back with visual pulse indicators.
+  - Debounced 10-second skip forward/back with visual pulse indicators.
   - Auto-hides OSD after 3.5 seconds of inactivity.
 - **Watch History & Resume:**
   - Remembers the exact playback second where you paused.
@@ -44,7 +45,7 @@ A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew
 │                                                        │
 │  ┌─────────────────────────┐  HTTP API & Stream (206)  │
 │  │   TizenBrew Webview     │ ◄──────────────────────┐  │
-│  │   (Plex UI / HTML5 Video)│                        │  │
+│  │   (TizenFlix UI / Video)│                        │  │
 │  └─────────────────────────┘                        │  │
 │               │                                      │  │
 │               ▼                                      │  │
@@ -60,7 +61,7 @@ A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew
                           ▼
             ┌───────────────────────────┐
             │ Remote / Local FTP Server │
-            │ (NAS, Seedbox, Linux Box) │
+            │ (Android Phone, NAS, PC)  │
             └───────────────────────────┘
 ```
 
@@ -72,24 +73,35 @@ A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew
 1. A Samsung Smart TV running **Tizen 3.0+** (2017 or newer).
 2. **TizenBrew** installed on your TV (follow the official [TizenBrew Guide](https://github.com/reisxd/TizenBrew)).
 
-### Adding the App to TizenBrew
+### Adding TizenFlix to TizenBrew
+
+#### Option A: Directly from the TV (Recommended)
 1. Launch **TizenBrew** on your TV.
-2. Go to the **Module Manager / Add Module** option (or use the desktop **TizenBrewInstaller**).
-3. Enter this GitHub repository identifier:
+2. Go to **Module Manager** → **Add from GitHub** (or **GitHub / GH**).
+3. Type:
    ```text
-   Owais5514/tizenbrew-plex-ftp
+   Owais5514/tizenflix
    ```
-4. Confirm installation. TizenBrew will download the module and add the **Plex FTP Player** icon to your launcher.
+4. Confirm. TizenBrew will download the module and add the **TizenFlix** icon to your launcher.
+
+#### Option B: Via TizenBrew Installer (Desktop PC / Mac)
+1. Open **TizenBrew Installer** on your computer.
+2. Click **Install from GitHub**.
+3. Enter:
+   ```text
+   Owais5514/tizenflix
+   ```
+4. Click **Install**.
 
 ---
 
 ## ⚙️ Configuration
 
-1. Launch **Plex FTP Player** from TizenBrew.
+1. Launch **TizenFlix** on your TV.
 2. In the left sidebar, click **Settings** (gear icon).
 3. Fill in your FTP server details:
-   - **FTP Server Host / IP:** e.g., `192.168.1.100` or `ftp.myserver.com`
-   - **Port:** `21` (default)
+   - **FTP Server Host / IP:** e.g., `192.168.1.12` or `192.168.1.100`
+   - **Port:** `5514` (for Android WiFi FTP Server) or `21` (default)
    - **Username:** your FTP username (or `anonymous`)
    - **Password:** your FTP password
    - **Media Root Path:** e.g. `/` or `/Movies` or `/Media`
@@ -104,8 +116,8 @@ A sleek, Plex-inspired media player designed to run directly inside **[TizenBrew
 You can test and run this player on your PC/Mac or local browser without a TV:
 
 ```bash
-git clone https://github.com/Owais5514/tizenbrew-plex-ftp.git
-cd tizenbrew-plex-ftp
+git clone https://github.com/Owais5514/tizenflix.git
+cd tizenflix
 
 # Start the background service & web server
 npm start
@@ -123,11 +135,11 @@ Open `http://localhost:8999` in your browser. Use the keyboard arrow keys, Enter
 | **Enter / OK** | Select card, open details, play video |
 | **Return / Back** | Close details modal, exit video player, or return to sidebar |
 | **Play / Pause** | Toggle video playback |
-| **Fast Forward / Rewind** | Seek forward / backward by 10-15 seconds |
+| **Fast Forward / Rewind** | Seek forward / backward by 10 seconds |
 | **Stop** | Exit video player |
 
 ---
 
 ## 📄 License
 
-MIT License. Feel free to fork, customize, and extend for your personal home theater setup!
+MIT License. Free to customize and extend for your personal home theater setup!

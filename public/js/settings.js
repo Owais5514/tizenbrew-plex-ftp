@@ -46,7 +46,7 @@ class SettingsController {
       }
     } catch (_) {
       // Fallback from localStorage
-      const local = localStorage.getItem('plexftp_settings');
+      const local = localStorage.getItem('tizenflix_settings') || localStorage.getItem('plexftp_settings');
       if (local) {
         this.populateForm(JSON.parse(local));
       }
@@ -106,6 +106,7 @@ class SettingsController {
 
   async saveSettings() {
     const config = this.getFormData();
+    localStorage.setItem('tizenflix_settings', JSON.stringify(config));
     localStorage.setItem('plexftp_settings', JSON.stringify(config));
 
     try {

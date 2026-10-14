@@ -89,6 +89,20 @@ body.tv-body {
   padding-left: 14px;
 }
 
+.brand-tizen {
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 2px;
+}
+
+.brand-flix {
+  color: #e50914;
+  font-weight: 900;
+  letter-spacing: 2px;
+  margin-left: 3px;
+  text-shadow: 0 0 16px rgba(229, 9, 20, 0.4);
+}
+
 .brand-plex {
   color: var(--accent-plex);
 }
