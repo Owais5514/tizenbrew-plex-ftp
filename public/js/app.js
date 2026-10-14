@@ -95,7 +95,7 @@ class PlexApp {
     refreshBtn.querySelector('span').textContent = 'Scanning FTP...';
 
     try {
-      const res = await fetch(`/api/scan${forceRefresh ? '?refresh=true' : ''}`);
+      const res = await fetch(`${window.API_BASE}/api/scan${forceRefresh ? '?refresh=true' : ''}`);
       if (res.ok) {
         const data = await res.json();
         this.libraryData = data;
@@ -337,7 +337,7 @@ class PlexApp {
     container.innerHTML = '<div style="padding: 20px; color: var(--text-secondary);">Loading directory...</div>';
 
     try {
-      const res = await fetch(`/api/browse?path=${encodeURIComponent(folderPath)}`);
+      const res = await fetch(`${window.API_BASE}/api/browse?path=${encodeURIComponent(folderPath)}`);
       const data = await res.json();
       if (data.path) {
         this.currentFolder = data.path;

@@ -2,6 +2,10 @@
  * 2D Spatial Navigation Engine for TV Remote Control D-pad
  * Fully compatible with Samsung Tizen TV remote controls and standard keyboard arrows.
  */
+window.API_BASE = (window.location.port === '8999' || !window.location.port)
+  ? ''
+  : `${window.location.protocol}//${window.location.hostname || '127.0.0.1'}:8999`;
+
 class SpatialNav {
   constructor() {
     this.currentFocus = null;

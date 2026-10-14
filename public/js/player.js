@@ -102,8 +102,8 @@ class VideoPlayer {
     this.startOffset = resumeOffset;
 
     // Build backend stream URL
-    const streamUrl = `/api/stream?file=${encodeURIComponent(mediaItem.fullPath)}`;
-    const subtitleUrl = `/api/subtitle?file=${encodeURIComponent(mediaItem.fullPath)}`;
+    const streamUrl = `${window.API_BASE}/api/stream?file=${encodeURIComponent(mediaItem.fullPath)}`;
+    const subtitleUrl = `${window.API_BASE}/api/subtitle?file=${encodeURIComponent(mediaItem.fullPath)}`;
 
     this.osdTitle.textContent = mediaItem.displayTitle || mediaItem.title;
     this.osdQuality.textContent = mediaItem.quality || 'HD';
@@ -222,7 +222,7 @@ class VideoPlayer {
       posterUrl: this.currentMedia.posterUrl || null
     };
 
-    fetch('/api/progress', {
+    fetch(`${window.API_BASE}/api/progress`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)

@@ -34,7 +34,7 @@ class SettingsController {
 
   async loadSettings() {
     try {
-      const res = await fetch('/api/settings');
+      const res = await fetch(`${window.API_BASE}/api/settings`);
       if (res.ok) {
         const data = await res.json();
         this.populateForm(data);
@@ -80,7 +80,7 @@ class SettingsController {
     this.testBtn.disabled = true;
 
     try {
-      const res = await fetch('/api/test', {
+      const res = await fetch(`${window.API_BASE}/api/test`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
@@ -109,7 +109,7 @@ class SettingsController {
     localStorage.setItem('plexftp_settings', JSON.stringify(config));
 
     try {
-      const res = await fetch('/api/settings', {
+      const res = await fetch(`${window.API_BASE}/api/settings`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(config)
