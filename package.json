@@ -1,0 +1,27 @@
+{
+  "name": "tizenbrew-plex-ftp",
+  "version": "1.0.0",
+  "appName": "Plex FTP Player",
+  "description": "A Plex-styled video player for Samsung Tizen TVs that streams directly from an FTP server.",
+  "packageType": "app",
+  "appPath": "public/index.html",
+  "serviceFile": "service.js",
+  "main": "service.js",
+  "author": "Owais5514",
+  "license": "MIT",
+  "keys": [
+    "MediaPlayPause",
+    "MediaPlay",
+    "MediaPause",
+    "MediaStop",
+    "MediaFastForward",
+    "MediaRewind"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Owais5514/tizenbrew-plex-ftp"
+  },
+  "scripts": {
+    "start": "node service.js"
+  }
+}

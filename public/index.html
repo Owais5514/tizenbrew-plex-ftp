@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Plex FTP Player</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/player.css">
+  <link rel="stylesheet" href="css/modal.css">
+</head>
+<body class="tv-body">
+  <!-- Dynamic Ambient Backdrop Glow -->
+  <div id="ambient-backdrop" class="ambient-backdrop"></div>
+  <div class="ambient-overlay"></div>
+
+  <!-- Main TV Interface Layout -->
+  <div id="main-container" class="main-container">
+    <!-- Plex-style Sidebar -->
+    <nav id="sidebar" class="sidebar">
+      <div class="brand-header">
+        <span class="brand-plex">PLEX</span><span class="brand-ftp">FTP</span>
+      </div>
+
+      <div class="nav-group" role="navigation">
+        <div class="nav-item focusable" id="nav-home" data-view="home" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span class="nav-label">Home</span>
+        </div>
+        <div class="nav-item focusable" id="nav-movies" data-view="movies" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
+          <span class="nav-label">Movies</span>
+        </div>
+        <div class="nav-item focusable" id="nav-tv" data-view="tv" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M21 3H3c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.1-.9-2-2-2zm0 14H3V5h18v12z"/></svg>
+          <span class="nav-label">TV Shows</span>
+        </div>
+        <div class="nav-item focusable" id="nav-browse" data-view="browse" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+          <span class="nav-label">Folders</span>
+        </div>
+        <div class="nav-item focusable" id="nav-settings" data-view="settings" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+          <span class="nav-label">Settings</span>
+        </div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div id="connection-indicator" class="connection-pill disconnected">
+          <span class="status-dot"></span>
+          <span class="status-text">FTP Offline</span>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main id="content-area" class="content-area">
+      <!-- Top Header / Search / Status -->
+      <header class="content-header">
+        <div class="header-breadcrumbs">
+          <span id="breadcrumb-title">Home</span>
+        </div>
+        <div class="header-actions">
+          <button class="header-btn focusable" id="btn-refresh" tabindex="0">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+            <span>Scan Library</span>
+          </button>
+        </div>
+      </header>
+
+      <!-- View: Home -->
+      <div id="view-home" class="view-section active">
+        <!-- Continue Watching Carousel -->
+        <section id="section-continue" class="carousel-section hidden">
+          <h2 class="section-title">Continue Watching</h2>
+          <div class="carousel-track" id="track-continue"></div>
+        </section>
+
+        <!-- Recently Added Carousel -->
+        <section id="section-recent" class="carousel-section">
+          <h2 class="section-title">Recently Added</h2>
+          <div class="carousel-track" id="track-recent"></div>
+        </section>
+
+        <!-- Movies Carousel -->
+        <section id="section-movies" class="carousel-section">
+          <h2 class="section-title">Movies</h2>
+          <div class="carousel-track" id="track-movies"></div>
+        </section>
+
+        <!-- TV Shows Carousel -->
+        <section id="section-tv" class="carousel-section hidden">
+          <h2 class="section-title">TV Shows</h2>
+          <div class="carousel-track" id="track-tv"></div>
+        </section>
+
+        <!-- Empty State Prompt -->
+        <div id="home-empty-state" class="empty-state hidden">
+          <div class="empty-icon">📂</div>
+          <h2>No Media Found on FTP Server</h2>
+          <p>Please configure your FTP server credentials in Settings to start streaming your videos.</p>
+          <button class="primary-btn focusable" id="btn-go-settings" tabindex="0">Configure FTP Server</button>
+        </div>
+      </div>
+
+      <!-- View: Grid (Movies or TV Shows) -->
+      <div id="view-grid" class="view-section">
+        <div class="media-grid" id="grid-container"></div>
+      </div>
+
+      <!-- View: Folder Browser -->
+      <div id="view-browse" class="view-section">
+        <div class="folder-header">
+          <button class="folder-back-btn focusable" id="btn-folder-up" tabindex="0">⬆ Back to Parent Directory</button>
+          <span id="current-folder-path" class="current-folder-path">/</span>
+        </div>
+        <div class="folder-list" id="folder-items-container"></div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Media Details Modal -->
+  <div id="details-modal" class="modal-overlay hidden">
+    <div class="details-content">
+      <div class="details-poster-wrap">
+        <img id="detail-poster" src="" alt="Poster" class="details-poster">
+      </div>
+      <div class="details-info">
+        <h1 id="detail-title" class="details-title">Movie Title</h1>
+        <div class="details-meta">
+          <span id="detail-year" class="meta-tag">2024</span>
+          <span id="detail-quality" class="meta-tag quality">1080P</span>
+          <span id="detail-size" class="meta-tag">2.4 GB</span>
+          <span id="detail-rating" class="meta-tag rating hidden">★ 8.5</span>
+        </div>
+        <p id="detail-overview" class="details-overview">Media description goes here...</p>
+        <div class="details-actions">
+          <button class="primary-btn focusable" id="btn-detail-play" tabindex="0">▶ Play</button>
+          <button class="secondary-btn focusable hidden" id="btn-detail-resume" tabindex="0">↺ Resume (00:00)</button>
+          <button class="secondary-btn focusable" id="btn-detail-close" tabindex="0">✕ Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div id="settings-modal" class="modal-overlay hidden">
+    <div class="settings-dialog">
+      <div class="settings-header">
+        <h2>FTP Server & App Settings</h2>
+        <p>Configure your remote FTP server connection for media streaming.</p>
+      </div>
+      <form id="settings-form" class="settings-form">
+        <div class="form-row">
+          <div class="form-group flex-2">
+            <label for="cfg-host">FTP Server Host / IP</label>
+            <input type="text" id="cfg-host" class="form-input focusable" placeholder="e.g. 192.168.1.100 or ftp.myseedbox.com" tabindex="0">
+          </div>
+          <div class="form-group flex-1">
+            <label for="cfg-port">Port</label>
+            <input type="number" id="cfg-port" class="form-input focusable" value="21" tabindex="0">
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group flex-1">
+            <label for="cfg-user">Username</label>
+            <input type="text" id="cfg-user" class="form-input focusable" placeholder="anonymous or username" tabindex="0">
+          </div>
+          <div class="form-group flex-1">
+            <label for="cfg-pass">Password</label>
+            <input type="password" id="cfg-pass" class="form-input focusable" placeholder="password" tabindex="0">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-path">Media Root Path</label>
+          <input type="text" id="cfg-path" class="form-input focusable" value="/" placeholder="/ or /Movies or /Media" tabindex="0">
+        </div>
+
+        <div class="form-group">
+          <label for="cfg-tmdb">TMDB API Key (Optional)</label>
+          <input type="text" id="cfg-tmdb" class="form-input focusable" placeholder="Enter TheMovieDB API key for automatic posters & metadata" tabindex="0">
+        </div>
+
+        <div class="settings-status-box" id="settings-status-box">
+          Ready to connect
+        </div>
+
+        <div class="settings-actions">
+          <button type="button" class="secondary-btn focusable" id="btn-test-ftp" tabindex="0">⚡ Test Connection</button>
+          <button type="submit" class="primary-btn focusable" id="btn-save-settings" tabindex="0">💾 Save & Scan</button>
+          <button type="button" class="secondary-btn focusable" id="btn-close-settings" tabindex="0">Close</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Fullscreen Video Player Container -->
+  <div id="player-container" class="player-container hidden">
+    <video id="video-element" class="video-element" playsinline>
+      <track id="video-track" kind="subtitles" label="English" srclang="en" default>
+    </video>
+
+    <!-- Custom On-Screen Display (OSD) -->
+    <div id="player-osd" class="player-osd">
+      <div class="osd-top">
+        <h2 id="osd-title" class="osd-media-title">Now Playing</h2>
+        <span id="osd-quality" class="osd-badge">1080P</span>
+      </div>
+
+      <div class="osd-center">
+        <div id="osd-seek-indicator" class="osd-seek-indicator hidden">
+          <span id="seek-icon">⏩</span>
+          <span id="seek-amount">+10s</span>
+        </div>
+      </div>
+
+      <div class="osd-bottom">
+        <!-- Progress / Timeline Bar -->
+        <div class="timeline-container focusable" id="osd-timeline" tabindex="0">
+          <div class="timeline-buffer" id="osd-buffer-bar"></div>
+          <div class="timeline-progress" id="osd-progress-bar"></div>
+          <div class="timeline-thumb" id="osd-thumb"></div>
+        </div>
+
+        <div class="osd-controls-row">
+          <div class="time-display">
+            <span id="osd-current-time">00:00:00</span>
+            <span> / </span>
+            <span id="osd-total-time">00:00:00</span>
+          </div>
+
+          <div class="osd-buttons">
+            <button class="osd-btn focusable" id="btn-player-rewind" title="Rewind 10s" tabindex="0">⏪ 10s</button>
+            <button class="osd-btn primary focusable" id="btn-player-toggle" title="Play/Pause" tabindex="0">⏸</button>
+            <button class="osd-btn focusable" id="btn-player-forward" title="Forward 10s" tabindex="0">⏩ 10s</button>
+            <button class="osd-btn focusable" id="btn-player-exit" title="Exit Player" tabindex="0">⏹ Exit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="js/nav.js"></script>
+  <script src="js/player.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
