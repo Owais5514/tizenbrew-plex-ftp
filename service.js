@@ -6,6 +6,9 @@ const url = require('url');
 const SimpleFtpClient = require('./lib/ftp-client');
 const MediaScanner = require('./lib/media-scanner');
 const TmdbService = require('./lib/tmdb');
+const MetadataRecognizer = require('./lib/metadata-recognizer');
+const AniListService = require('./lib/anilist');
+const ModuleEngine = require('./lib/module-engine');
 
 const PORT = process.env.PORT || 8999;
 const DATA_DIR = path.join(__dirname, 'data');
@@ -32,7 +35,8 @@ function loadSettings() {
     path: '/',
     secure: false,
     tmdbApiKey: '',
-    directHttpUrl: ''
+    directHttpUrl: '',
+    anilistToken: ''
   };
 
   try {
@@ -84,6 +88,9 @@ function saveProgress(fileId, data) {
 
 let appSettings = loadSettings();
 const tmdb = new TmdbService(appSettings.tmdbApiKey);
+const recognizer = new MetadataRecognizer(appSettings.tmdbApiKey);
+const anilist = new AniListService();
+const moduleEngine = new ModuleEngine();
 
 let mediaCache = {
   items: [],
@@ -207,9 +214,23 @@ const server = http.createServer(async (req, res) => {
       appSettings = { ...appSettings, ...newSettings };
       saveSettings(appSettings);
       tmdb.setApiKey(appSettings.tmdbApiKey || '');
+      recognizer.setTmdbApiKey(appSettings.tmdbApiKey || '');
       mediaCache.items = [];
       mediaCache.lastScan = 0;
       return sendJson(200, { success: true, settings: appSettings });
+    }
+
+    // API: Set Fixed Home Folder
+    if (pathname === '/api/settings/home-folder' && req.method === 'POST') {
+      const body = await readBody();
+      if (body.path) {
+        appSettings.path = body.path;
+        saveSettings(appSettings);
+        mediaCache.items = [];
+        mediaCache.lastScan = 0;
+        return sendJson(200, { success: true, path: body.path });
+      }
+      return sendJson(400, { error: 'Missing path parameter' });
     }
 
     // API: Test FTP Connection
@@ -262,16 +283,13 @@ const server = http.createServer(async (req, res) => {
           const rawVideos = await scanFtpDirectory(ftp, rootDir);
           ftp.destroy();
 
-          if (appSettings.tmdbApiKey) {
-            for (const item of rawVideos) {
-              const meta = await tmdb.search(item.title, item.year, item.isTvShow);
-              if (meta) {
-                item.overview = meta.overview;
-                item.rating = meta.rating;
-                item.posterUrl = meta.posterUrl;
-                item.backdropUrl = meta.backdropUrl;
-              }
-            }
+          // Content Recognition (AniList, TMDB, TVMaze)
+          console.log(`[Scan] Recognizing metadata and cover art for ${rawVideos.length} items...`);
+          for (const item of rawVideos) {
+            try {
+              const enriched = await recognizer.recognize(item);
+              Object.assign(item, enriched);
+            } catch (_) {}
           }
 
           mediaCache.items = rawVideos;
@@ -384,6 +402,190 @@ const server = http.createServer(async (req, res) => {
         res.end();
       }
       return;
+    }
+
+    // --- Mobile AniList QR Auth & Verification Page ---
+    if (pathname === '/auth/anilist' && req.method === 'GET') {
+      const sid = parsedUrl.query.sid || '';
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(anilist.getMobileAuthHtml(sid));
+    }
+
+    // API: Start AniList Mobile QR Auth Session
+    if (pathname === '/api/auth/anilist/qr' && req.method === 'GET') {
+      let hostIp = '127.0.0.1';
+      if (req.headers.host) {
+        hostIp = req.headers.host.split(':')[0];
+      }
+      const session = anilist.createAuthSession(hostIp, PORT);
+      return sendJson(200, session);
+    }
+
+    // API: Check AniList Auth Session Status
+    if (pathname === '/api/auth/anilist/status' && req.method === 'GET') {
+      const sid = parsedUrl.query.sid;
+      if (!sid) return sendJson(400, { error: 'sid required' });
+      const status = anilist.getSessionStatus(sid);
+      if (status.status === 'authorized' && status.token) {
+        appSettings.anilistToken = status.token;
+        saveSettings(appSettings);
+      }
+      return sendJson(200, status);
+    }
+
+    // API: Receive Token from Mobile Auth Page
+    if (pathname === '/api/auth/anilist/token' && req.method === 'POST') {
+      const body = await readBody();
+      if (!body.sid || !body.token) return sendJson(400, { error: 'sid and token required' });
+      const ok = await anilist.completeAuthSession(body.sid, body.token);
+      if (ok) {
+        appSettings.anilistToken = body.token;
+        saveSettings(appSettings);
+        const user = await anilist.getViewer(body.token);
+        return sendJson(200, { success: true, user });
+      }
+      return sendJson(400, { error: 'Session expired or invalid token' });
+    }
+
+    // API: Get Current AniList User & Tracked Library
+    if (pathname === '/api/anilist/user' && req.method === 'GET') {
+      if (!appSettings.anilistToken) return sendJson(200, { loggedIn: false });
+      const user = await anilist.getViewer(appSettings.anilistToken);
+      if (!user) {
+        appSettings.anilistToken = '';
+        saveSettings(appSettings);
+        return sendJson(200, { loggedIn: false });
+      }
+      const list = await anilist.getUserAnimeList(appSettings.anilistToken, user.id);
+      return sendJson(200, { loggedIn: true, user, ...list });
+    }
+
+    // API: AniList Trending Anime
+    if (pathname === '/api/anilist/trending' && req.method === 'GET') {
+      const page = parseInt(parsedUrl.query.page, 10) || 1;
+      const items = await anilist.getTrendingAnime(page, 20);
+      return sendJson(200, { items });
+    }
+
+    // API: AniList Search
+    if (pathname === '/api/anilist/search' && req.method === 'GET') {
+      const q = parsedUrl.query.q || '';
+      if (!q) return sendJson(200, { items: [] });
+      const items = await anilist.searchAnime(q, 1, 20);
+      return sendJson(200, { items });
+    }
+
+    // API: Update AniList Progress (Two-way tracking)
+    if (pathname === '/api/anilist/progress' && req.method === 'POST') {
+      if (!appSettings.anilistToken) return sendJson(401, { error: 'Not logged into AniList' });
+      const body = await readBody();
+      const result = await anilist.updateProgress(appSettings.anilistToken, body);
+      return sendJson(200, { success: true, result });
+    }
+
+    // API: AniList Logout
+    if (pathname === '/api/anilist/logout' && req.method === 'POST') {
+      appSettings.anilistToken = '';
+      saveSettings(appSettings);
+      return sendJson(200, { success: true });
+    }
+
+    // --- Module Engine Endpoints ---
+
+    // API: List Modules
+    if (pathname === '/api/modules' && req.method === 'GET') {
+      return sendJson(200, {
+        modules: moduleEngine.getModules(),
+        active: moduleEngine.getActiveModule()
+      });
+    }
+
+    // API: Install Module from Manifest URL
+    if (pathname === '/api/modules/install' && req.method === 'POST') {
+      const body = await readBody();
+      if (!body.url) return sendJson(400, { error: 'url parameter required' });
+      try {
+        const mod = await moduleEngine.installModule(body.url);
+        return sendJson(200, { success: true, module: mod });
+      } catch (err) {
+        return sendJson(400, { success: false, error: err.message });
+      }
+    }
+
+    // API: Set Active Module
+    if (pathname === '/api/modules/active' && req.method === 'POST') {
+      const body = await readBody();
+      const ok = moduleEngine.setActiveModule(body.id);
+      return sendJson(200, { success: ok, activeId: body.id });
+    }
+
+    // API: Delete Module
+    if (pathname === '/api/modules' && req.method === 'DELETE') {
+      const body = await readBody();
+      const ok = moduleEngine.removeModule(body.id);
+      return sendJson(200, { success: ok });
+    }
+
+    // API: Search Active Module
+    if (pathname === '/api/module/search' && req.method === 'GET') {
+      const q = parsedUrl.query.q || '';
+      try {
+        const results = await moduleEngine.search(q);
+        return sendJson(200, { results: results || [] });
+      } catch (err) {
+        return sendJson(500, { error: err.message });
+      }
+    }
+
+    // API: Module Episodes
+    if (pathname === '/api/module/episodes' && req.method === 'GET') {
+      const urlParam = parsedUrl.query.url;
+      if (!urlParam) return sendJson(400, { error: 'url parameter required' });
+      try {
+        const episodes = await moduleEngine.getEpisodes(urlParam);
+        return sendJson(200, { episodes: episodes || [] });
+      } catch (err) {
+        return sendJson(500, { error: err.message });
+      }
+    }
+
+    // API: Module Stream Resolver
+    if (pathname === '/api/module/stream' && req.method === 'GET') {
+      const urlParam = parsedUrl.query.url;
+      if (!urlParam) return sendJson(400, { error: 'url parameter required' });
+      try {
+        const streamData = await moduleEngine.getStream(urlParam);
+        return sendJson(200, streamData);
+      } catch (err) {
+        return sendJson(500, { error: err.message });
+      }
+    }
+
+    // API: Module Stream Proxy (Forwards headers like Referer to avoid 403 blocks)
+    if (pathname === '/api/module/proxy' && req.method === 'GET') {
+      const targetUrl = parsedUrl.query.url;
+      const referer = parsedUrl.query.referer || '';
+      if (!targetUrl) return sendJson(400, { error: 'url required' });
+
+      try {
+        const u = new URL(targetUrl);
+        const transport = u.protocol === 'https:' ? https : http;
+        const proxyReq = transport.get(targetUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+            ...(referer ? { 'Referer': referer, 'Origin': new URL(referer).origin } : {})
+          }
+        }, (proxyRes) => {
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(res);
+        });
+        proxyReq.on('error', (e) => {
+          if (!res.headersSent) sendJson(502, { error: e.message });
+        });
+        return;
+      } catch (err) {
+        return sendJson(400, { error: err.message });
+      }
     }
 
     // API: Video Streaming Proxy with Active Session Abort & Exact Capped Chunk Support

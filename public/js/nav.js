@@ -262,6 +262,36 @@ class SpatialNav {
       return;
     }
 
+    // 2b. If Episodes Modal is open, close it
+    const episodesModal = document.getElementById('episodes-modal');
+    if (episodesModal && !episodesModal.classList.contains('hidden')) {
+      episodesModal.classList.add('hidden');
+      if (this.focusHistory.length > 0) {
+        this.focus(this.focusHistory.pop(), false);
+      }
+      return;
+    }
+
+    // 2c. If Module Manager Modal is open, close it
+    const moduleModal = document.getElementById('module-manager-modal');
+    if (moduleModal && !moduleModal.classList.contains('hidden')) {
+      moduleModal.classList.add('hidden');
+      const mgrBtn = document.getElementById('btn-open-module-manager');
+      if (mgrBtn) this.focus(mgrBtn);
+      return;
+    }
+
+    // 2d. If AniList QR Modal is open, close it
+    const qrModal = document.getElementById('anilist-qr-modal');
+    if (qrModal && !qrModal.classList.contains('hidden')) {
+      if (window.settings && window.settings.closeAniListQr) {
+        window.settings.closeAniListQr();
+      } else {
+        qrModal.classList.add('hidden');
+      }
+      return;
+    }
+
     // 3. If Settings Modal is open, close settings
     const settings = document.getElementById('settings-modal');
     if (settings && !settings.classList.contains('hidden')) {

@@ -8,9 +8,25 @@ A sleek, cinematic video player designed to run directly inside **[TizenBrew](ht
 
 - **Cinematic TV Interface:**
   - Dark aesthetic with dynamic ambient background glow based on the highlighted title.
-  - Sidebar navigation (**Home**, **Movies**, **TV Shows**, **Folder Browser**, **Settings**).
-  - Horizontal carousels with smooth scrolling: **Continue Watching**, **Recently Added**, **Movies**, **TV Shows**.
+  - Sidebar navigation (**Home**, **Anime**, **Modules**, **Movies**, **TV Shows**, **Folder Browser**, **Settings**).
+  - Horizontal carousels with smooth scrolling: **Continue Watching**, **Recently Added**, **AniList Watchlist**, **Trending Anime**, **Movies**, **TV Shows**.
   - Poster cards with video quality badges (`4K`, `1080p`, `720p`), release year, file size, and watch progress bars.
+- **Fixed Home Folder:**
+  - Set any specific FTP directory as your primary Home library (e.g. `/Download/Anime` or `/Movies`).
+  - 1-click **📌 Set as Home Folder** directly from the Folder Browser or via Settings.
+- **Smart Content Recognition & Metadata:**
+  - Automatic filename cleaning and bracket/tag stripping (`[SubsPlease]`, episode markers `- 05`, season/year, codecs).
+  - Multi-provider metadata recognizer: AniList GraphQL (free, instant anime match without API key), TMDB (movies/TV), and TVMaze.
+  - Caches posters, backdrops, synopses, and ratings locally for zero lag on TV boot.
+- **Two-Way AniList Tracking with Mobile QR Code Login:**
+  - **Zero remote typing:** TV generates a vector QR code. Scan with your phone camera, click "Sign in with AniList", and your TV instantly connects!
+  - Syncs your personal AniList lists: Currently Watching, Plan to Watch, Completed, and Trending Online.
+  - Two-way auto-scrobbling: when you reach 80% or finish an episode, your AniList progress updates automatically in real-time.
+- **Shirox-Compatible Module Engine & Streaming Scrapers:**
+  - Sandboxed JS module engine supporting Shirox/Sora scraper extensions (`searchResults`, `extractEpisodes`, `extractStreamUrl`).
+  - Comes with built-in high-speed anime provider out of the box.
+  - Module Manager: Install community scraper manifests via URL, set active providers, or switch scrapers.
+  - Built-in stream proxy forwarding `Referer` and `Origin` headers to bypass 403 Forbidden blocks on Smart TVs.
 - **Pure Node.js FTP Streaming Proxy (`service.js`):**
   - Modern web engines in Smart TVs do not support `ftp://` in HTML5 `<video>` tags.
   - TizenFlix includes a background Node.js service that translates HTTP `Range: bytes=X-Y` requests into FTP `REST` and `RETR` commands.
@@ -21,19 +37,16 @@ A sleek, cinematic video player designed to run directly inside **[TizenBrew](ht
   - Tizen Return / Back button (`keyCode 10009`) smoothly exits modals, player, or returns to sidebar.
   - Dedicated hardware Media key support (`MediaPlayPause`, `MediaFastForward`, `MediaRewind`, `MediaStop`).
 - **Custom TV Video Player & OSD (`player.js`):**
-  - Fullscreen video playback (`.mp4`, `.mkv`, `.webm`, `.mov`, `.ts`, `.m4v`).
+  - Fullscreen video playback (`.mp4`, `.mkv`, `.webm`, `.mov`, `.ts`, `.m4v`, and HLS `.m3u8` module streams).
   - Interactive OSD timeline, buffer indicator, elapsed/remaining duration.
   - Debounced 10-second skip forward/back with visual pulse indicators.
-  - Auto-hides OSD after 3.5 seconds of inactivity.
+  - Auto-hides OSD after 3.8 seconds of inactivity.
 - **Watch History & Resume:**
   - Remembers the exact playback second where you paused.
   - "Resume" button appears automatically in the Details view and Continue Watching carousel.
 - **Automatic Subtitles:**
   - Automatically detects sidecar `.srt` files with the same name on your FTP server.
   - Converts SRT to WebVTT on-the-fly and loads it into the HTML5 video track.
-- **Optional TMDB Metadata Enrichment:**
-  - Enter an optional free TheMovieDB (TMDB) API key in Settings to automatically fetch high-res movie posters, fanart backdrops, and synopses.
-  - Generates beautiful procedural SVG gradient posters if no API key or internet access is available.
 
 ---
 

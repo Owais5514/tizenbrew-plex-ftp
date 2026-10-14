@@ -26,6 +26,14 @@
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
           <span class="nav-label">Home</span>
         </div>
+        <div class="nav-item focusable" id="nav-anime" data-view="anime" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+          <span class="nav-label">Anime</span>
+        </div>
+        <div class="nav-item focusable" id="nav-modules" data-view="modules" tabindex="0">
+          <svg class="nav-icon" viewBox="0 0 24 24"><path d="M20.5 11H19V7c0-1.1-.9-2-2-2h-4V3.5C13 2.12 11.88 1 10.5 1S8 2.12 8 3.5V5H4c-1.1 0-1.99.9-1.99 2v3.8H3.5c1.49 0 2.7 1.21 2.7 2.7s-1.21 2.7-2.7 2.7H2V20c0 1.1.9 2 2 2h3.8v-1.5c0-1.49 1.21-2.7 2.7-2.7 1.49 0 2.7 1.21 2.7 2.7V22H17c1.1 0 2-.9 2-2v-4h1.5c1.38 0 2.5-1.12 2.5-2.5s-1.12-2.5-2.5-2.5z"/></svg>
+          <span class="nav-label">Modules</span>
+        </div>
         <div class="nav-item focusable" id="nav-movies" data-view="movies" tabindex="0">
           <svg class="nav-icon" viewBox="0 0 24 24"><path d="M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z"/></svg>
           <span class="nav-label">Movies</span>
@@ -69,10 +77,22 @@
 
       <!-- View: Home -->
       <div id="view-home" class="view-section active">
-        <!-- Continue Watching Carousel -->
+        <!-- AniList: Continue Watching -->
+        <section id="section-anilist-continue" class="carousel-section hidden">
+          <h2 class="section-title">🌸 AniList: Continue Watching</h2>
+          <div class="carousel-track" id="track-anilist-continue"></div>
+        </section>
+
+        <!-- Continue Watching Carousel (FTP) -->
         <section id="section-continue" class="carousel-section hidden">
-          <h2 class="section-title">Continue Watching</h2>
+          <h2 class="section-title">Continue Watching (FTP)</h2>
           <div class="carousel-track" id="track-continue"></div>
+        </section>
+
+        <!-- Trending Anime Carousel -->
+        <section id="section-anilist-trending" class="carousel-section hidden">
+          <h2 class="section-title">🔥 Trending Anime (AniList)</h2>
+          <div class="carousel-track" id="track-anilist-trending"></div>
         </section>
 
         <!-- Recently Added Carousel -->
@@ -102,6 +122,30 @@
         </div>
       </div>
 
+      <!-- View: Anime (AniList Tracked Library & Discovery) -->
+      <div id="view-anime" class="view-section">
+        <div class="view-subbar" style="margin-bottom: 24px; display: flex; gap: 12px;">
+          <button class="header-btn focusable active" id="tab-anime-watching" data-anime-tab="watching" tabindex="0">Currently Watching</button>
+          <button class="header-btn focusable" id="tab-anime-planning" data-anime-tab="planning" tabindex="0">Plan to Watch</button>
+          <button class="header-btn focusable" id="tab-anime-completed" data-anime-tab="completed" tabindex="0">Completed</button>
+          <button class="header-btn focusable" id="tab-anime-trending" data-anime-tab="trending" tabindex="0">Trending Online</button>
+        </div>
+        <div class="media-grid" id="anime-grid-container"></div>
+      </div>
+
+      <!-- View: Modules (Shirox-Compatible Scrapers & Streams) -->
+      <div id="view-modules" class="view-section">
+        <div class="folder-header" style="display: flex; gap: 14px; align-items: center; margin-bottom: 24px;">
+          <input type="text" id="module-search-input" class="form-input focusable" style="flex: 1;" placeholder="Search anime or movies on active streaming module..." tabindex="0">
+          <button class="primary-btn focusable" id="btn-module-search" tabindex="0">🔍 Search</button>
+          <button class="secondary-btn focusable" id="btn-open-module-manager" tabindex="0">🧩 Manage Modules</button>
+        </div>
+        <div style="margin-bottom: 16px; color: var(--text-secondary); font-size: 14px;">
+          Active Provider: <strong id="active-module-name" style="color: #02a9ff;">Gogoanime (Fast Stream)</strong>
+        </div>
+        <div class="media-grid" id="module-results-container"></div>
+      </div>
+
       <!-- View: Grid (Movies or TV Shows) -->
       <div id="view-grid" class="view-section">
         <div class="media-grid" id="grid-container"></div>
@@ -109,9 +153,10 @@
 
       <!-- View: Folder Browser -->
       <div id="view-browse" class="view-section">
-        <div class="folder-header">
-          <button class="folder-back-btn focusable" id="btn-folder-up" tabindex="0">⬆ Back to Parent Directory</button>
-          <span id="current-folder-path" class="current-folder-path">/</span>
+        <div class="folder-header" style="display: flex; gap: 16px; align-items: center; margin-bottom: 20px;">
+          <button class="folder-back-btn focusable" id="btn-folder-up" tabindex="0">⬆ Back to Parent</button>
+          <span id="current-folder-path" class="current-folder-path" style="flex: 1;">/</span>
+          <button class="secondary-btn focusable" id="btn-set-home-folder" tabindex="0" title="Make this folder the default Home scan directory">📌 Set as Home Folder</button>
         </div>
         <div class="folder-list" id="folder-items-container"></div>
       </div>
@@ -136,6 +181,7 @@
         <div class="details-actions">
           <button class="primary-btn focusable" id="btn-detail-play" tabindex="0">▶ Play</button>
           <button class="secondary-btn focusable hidden" id="btn-detail-resume" tabindex="0">↺ Resume (00:00)</button>
+          <button class="secondary-btn focusable hidden" id="btn-detail-stream-online" tabindex="0">🌐 Stream Online</button>
           <button class="secondary-btn focusable" id="btn-detail-close" tabindex="0">✕ Close</button>
         </div>
       </div>
@@ -146,14 +192,31 @@
   <div id="settings-modal" class="modal-overlay hidden">
     <div class="settings-dialog">
       <div class="settings-header">
-        <h2>FTP Server & App Settings</h2>
-        <p>Configure your remote FTP server connection for media streaming.</p>
+        <h2>TizenFlix Settings</h2>
+        <p>Configure your FTP server, fixed home directory, and connected trackers.</p>
       </div>
+
+      <!-- AniList Account Section -->
+      <div id="anilist-settings-box" style="margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 16px;">
+        <div style="font-size: 14px; font-weight: 700; margin-bottom: 10px; color: #02a9ff;">🌸 AniList Account Sync</div>
+        <div id="anilist-logged-out-state">
+          <button type="button" class="secondary-btn focusable" id="btn-open-anilist-qr" style="background: rgba(2, 169, 255, 0.15); border-color: #02a9ff; color: #fff;" tabindex="0">📲 Connect with AniList (Scan QR with Phone)</button>
+        </div>
+        <div id="anilist-logged-in-state" class="user-profile-badge hidden">
+          <img id="anilist-user-avatar" src="" alt="Avatar" class="user-avatar">
+          <div class="user-info-text">
+            <div id="anilist-user-name" class="user-name">AniList User</div>
+            <div class="user-subtext">✔ Two-way tracking enabled</div>
+          </div>
+          <button type="button" class="secondary-btn focusable" id="btn-anilist-logout" tabindex="0">Sign Out</button>
+        </div>
+      </div>
+
       <form id="settings-form" class="settings-form">
         <div class="form-row">
           <div class="form-group flex-2">
             <label for="cfg-host">FTP Server Host / IP</label>
-            <input type="text" id="cfg-host" class="form-input focusable" placeholder="e.g. 192.168.1.100 or ftp.myseedbox.com" tabindex="0">
+            <input type="text" id="cfg-host" class="form-input focusable" placeholder="e.g. 192.168.1.12 or 192.168.1.100" tabindex="0">
           </div>
           <div class="form-group flex-1">
             <label for="cfg-port">Port</label>
@@ -173,13 +236,14 @@
         </div>
 
         <div class="form-group">
-          <label for="cfg-path">Media Root Path</label>
-          <input type="text" id="cfg-path" class="form-input focusable" value="/" placeholder="/ or /Movies or /Media" tabindex="0">
+          <label for="cfg-path">Fixed Home Folder (FTP Directory to scan)</label>
+          <input type="text" id="cfg-path" class="form-input focusable" value="/" placeholder="/ or /Download or /Movies" tabindex="0">
+          <span style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Content in this folder will be displayed on the Home screen.</span>
         </div>
 
         <div class="form-group">
           <label for="cfg-tmdb">TMDB API Key (Optional)</label>
-          <input type="text" id="cfg-tmdb" class="form-input focusable" placeholder="Enter TheMovieDB API key for automatic posters & metadata" tabindex="0">
+          <input type="text" id="cfg-tmdb" class="form-input focusable" placeholder="Enter TheMovieDB API key for extra 4K movie posters" tabindex="0">
         </div>
 
         <div class="settings-status-box" id="settings-status-box">
@@ -192,6 +256,58 @@
           <button type="button" class="secondary-btn focusable" id="btn-close-settings" tabindex="0">Close</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- AniList QR Authentication Modal -->
+  <div id="anilist-qr-modal" class="modal-overlay hidden">
+    <div class="qr-dialog">
+      <div class="qr-header">
+        <h2>Connect to AniList</h2>
+        <p>Scan this QR code with your phone camera to authorize TizenFlix. No typing on your TV remote needed!</p>
+      </div>
+      <div class="qr-canvas-wrap" id="qr-code-container">
+        <!-- Vector QR SVG rendered here -->
+      </div>
+      <div class="qr-link-hint">
+        Or open in phone browser: <strong id="qr-mobile-url">http://...</strong>
+      </div>
+      <div class="qr-status-pulse">
+        <span class="pulse-dot"></span>
+        <span id="qr-poll-status">Waiting for phone authorization...</span>
+      </div>
+      <button type="button" class="secondary-btn focusable" id="btn-close-qr-modal" tabindex="0">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Module Stream Episode Picker Modal -->
+  <div id="episodes-modal" class="modal-overlay hidden">
+    <div class="details-content" style="max-height: 85vh; flex-direction: column; max-width: 800px;">
+      <h2 id="episodes-modal-title" style="font-size: 26px; margin-bottom: 6px;">Episodes</h2>
+      <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">Choose an episode to stream with active module</p>
+      <div id="episodes-list-container" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 12px; overflow-y: auto; max-height: 480px; padding: 4px;"></div>
+      <div style="margin-top: 20px; display: flex; justify-content: flex-end;">
+        <button type="button" class="secondary-btn focusable" id="btn-close-episodes" tabindex="0">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modules Manager Modal -->
+  <div id="module-manager-modal" class="modal-overlay hidden">
+    <div class="settings-dialog" style="max-width: 680px;">
+      <div class="settings-header">
+        <h2>Streaming Modules Manager</h2>
+        <p>Manage installed scrapers or add community modules via manifest URL.</p>
+      </div>
+      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
+        <input type="text" id="input-module-url" class="form-input focusable" style="flex: 1;" placeholder="Paste Shirox/Sora module JSON manifest URL..." tabindex="0">
+        <button type="button" class="primary-btn focusable" id="btn-install-module" tabindex="0">Install</button>
+      </div>
+      <div style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-secondary);">INSTALLED MODULES</div>
+      <div id="installed-modules-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+      <div class="settings-actions">
+        <button type="button" class="secondary-btn focusable" id="btn-close-modules-modal" tabindex="0">Close</button>
+      </div>
     </div>
   </div>
 

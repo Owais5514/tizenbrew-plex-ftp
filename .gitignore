@@ -1,5 +1,4 @@
 node_modules/
-data/settings.json
-data/progress.json
+data/*.json
 .DS_Store
 *.log

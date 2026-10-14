@@ -100,16 +100,26 @@ class VideoPlayer {
   play(mediaItem, resumeOffset = 0) {
     this.currentMedia = mediaItem;
     this.startOffset = resumeOffset;
-
-    // Build backend stream URL
-    const streamUrl = `${window.API_BASE}/api/stream?file=${encodeURIComponent(mediaItem.fullPath)}`;
-    const subtitleUrl = `${window.API_BASE}/api/subtitle?file=${encodeURIComponent(mediaItem.fullPath)}`;
+    this._anilistScrobbled = false;
 
     this.osdTitle.textContent = mediaItem.displayTitle || mediaItem.title;
     this.osdQuality.textContent = mediaItem.quality || 'HD';
 
-    this.video.src = streamUrl;
-    this.track.src = subtitleUrl;
+    if (mediaItem.streamUrl) {
+      // Direct or Proxied Module Stream
+      this.video.src = mediaItem.streamUrl;
+      if (mediaItem.subtitleUrl) {
+        this.track.src = mediaItem.subtitleUrl;
+      } else {
+        this.track.removeAttribute('src');
+      }
+    } else {
+      // FTP Media Stream Proxy
+      const streamUrl = `${window.API_BASE}/api/stream?file=${encodeURIComponent(mediaItem.fullPath)}`;
+      const subtitleUrl = `${window.API_BASE}/api/subtitle?file=${encodeURIComponent(mediaItem.fullPath)}`;
+      this.video.src = streamUrl;
+      this.track.src = subtitleUrl;
+    }
 
     this.container.classList.remove('hidden');
     this.showOsd();
@@ -180,6 +190,14 @@ class VideoPlayer {
     if (thumb) thumb.style.left = `${pct}%`;
 
     this.currentTimeEl.textContent = this.formatTime(current);
+
+    // Two-Way AniList Auto-Scrobble when reaching 80% of episode
+    if (!this._anilistScrobbled && this.currentMedia && this.currentMedia.anilistId && total > 60) {
+      if ((current / total) >= 0.8) {
+        this._anilistScrobbled = true;
+        this.scrobbleToAniList(this.currentMedia.anilistId, this.currentMedia.episode || 1);
+      }
+    }
   }
 
   onProgress() {
@@ -190,8 +208,34 @@ class VideoPlayer {
   }
 
   onEnded() {
+    if (!this._anilistScrobbled && this.currentMedia && this.currentMedia.anilistId) {
+      this._anilistScrobbled = true;
+      this.scrobbleToAniList(this.currentMedia.anilistId, this.currentMedia.episode || 1);
+    }
     this.saveCurrentProgress(true);
     this.exit();
+  }
+
+  async scrobbleToAniList(mediaId, episode) {
+    try {
+      const res = await fetch(`${window.API_BASE}/api/anilist/progress`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaId: parseInt(mediaId, 10),
+          progress: parseInt(episode, 10) || 1,
+          status: 'CURRENT'
+        })
+      });
+      if (res.ok) {
+        console.log(`[AniList] Auto-scrobbled media ${mediaId} to episode ${episode}`);
+        if (window.app && window.app.loadAniList) {
+          window.app.loadAniList();
+        }
+      }
+    } catch (err) {
+      console.warn('[AniList] Scrobble failed:', err.message);
+    }
   }
 
   showOsd() {
@@ -213,9 +257,10 @@ class VideoPlayer {
 
   saveCurrentProgress(isCompleted = false) {
     if (!this.currentMedia || !this.video.duration) return;
+    const fileId = this.currentMedia.id || this.currentMedia.fullPath || ('stream:' + (this.currentMedia.displayTitle || this.currentMedia.title));
     const payload = {
-      fileId: this.currentMedia.id,
-      title: this.currentMedia.title,
+      fileId,
+      title: this.currentMedia.displayTitle || this.currentMedia.title,
       currentTime: isCompleted ? 0 : Math.floor(this.video.currentTime),
       duration: Math.floor(this.video.duration),
       completed: isCompleted,
