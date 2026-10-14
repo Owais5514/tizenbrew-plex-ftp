@@ -2,6 +2,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const url = require('url');
+const os = require('os');
 
 const SimpleFtpClient = require('./lib/ftp-client');
 const MediaScanner = require('./lib/media-scanner');
@@ -25,6 +26,27 @@ const SKIP_DIRS = new Set([
   'Android', 'tencent', 'OSSLog', 'apminsight', 'monitor', 'qvs', 'apm',
   'Facebook Messenger', 'Voice Recorder', 'Backups', '.thumbnails', '$RECYCLE.BIN'
 ]);
+
+function getLanIp() {
+  try {
+    const ifaces = os.networkInterfaces();
+    let fallback = '127.0.0.1';
+    for (const name in ifaces) {
+      for (const net of ifaces[name]) {
+        if (net.family === 'IPv4' && !net.internal) {
+          const lower = name.toLowerCase();
+          if (!lower.includes('vmnet') && !lower.includes('vethernet') && !lower.includes('virtual') && !lower.includes('wsl')) {
+            return net.address;
+          }
+          fallback = net.address;
+        }
+      }
+    }
+    return fallback;
+  } catch (_) {
+    return '127.0.0.1';
+  }
+}
 
 function loadSettings() {
   const defaults = {
@@ -416,6 +438,9 @@ const server = http.createServer(async (req, res) => {
       let hostIp = '127.0.0.1';
       if (req.headers.host) {
         hostIp = req.headers.host.split(':')[0];
+      }
+      if (hostIp === '127.0.0.1' || hostIp === 'localhost' || hostIp === '::1') {
+        hostIp = getLanIp();
       }
       const session = anilist.createAuthSession(hostIp, PORT);
       return sendJson(200, session);
