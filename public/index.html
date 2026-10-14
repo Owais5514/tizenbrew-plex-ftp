@@ -305,12 +305,18 @@
         <h2>Streaming Modules Manager</h2>
         <p>Manage installed scrapers or add community modules via manifest URL.</p>
       </div>
-      <div style="display: flex; gap: 10px; margin-bottom: 20px;">
-        <input type="text" id="input-module-url" class="form-input focusable" style="flex: 1;" placeholder="Paste Shirox/Sora module JSON manifest URL..." tabindex="0">
+      <div style="display: flex; gap: 10px; margin-bottom: 12px;">
+        <input type="text" id="input-module-url" class="form-input focusable" style="flex: 1;" placeholder="Paste Shirox/Sora module JSON manifest or script URL..." tabindex="0">
         <button type="button" class="primary-btn focusable" id="btn-install-module" tabindex="0">Install</button>
       </div>
+      <div style="background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.1); border-radius: 10px; padding: 10px 14px; margin-bottom: 20px; font-size: 13px;">
+        <div style="font-weight: 700; color: #02a9ff; margin-bottom: 4px;">💡 Tested Community Modules (Click to fill):</div>
+        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+          <a href="#" class="suggested-module focusable" data-url="https://raw.githubusercontent.com/alexrica/sora-modules/main/jkanime/module.json" style="color: #cbd5e1; text-decoration: underline;" tabindex="0">JKanime (Anime - Sub/Dub)</a>
+        </div>
+      </div>
       <div style="font-size: 13px; font-weight: 700; margin-bottom: 10px; color: var(--text-secondary);">INSTALLED MODULES</div>
-      <div id="installed-modules-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 300px; overflow-y: auto; margin-bottom: 20px;"></div>
+      <div id="installed-modules-container" style="display: flex; flex-direction: column; gap: 10px; max-height: 260px; overflow-y: auto; margin-bottom: 20px;"></div>
       <div class="settings-actions">
         <button type="button" class="secondary-btn focusable" id="btn-close-modules-modal" tabindex="0">Close</button>
       </div>

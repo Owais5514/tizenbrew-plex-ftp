@@ -419,6 +419,17 @@ class TizenFlixApp {
         }
       });
     }
+
+    document.querySelectorAll('.suggested-module').forEach(el => {
+      el.addEventListener('click', (e) => {
+        e.preventDefault();
+        const input = document.getElementById('input-module-url');
+        if (input && el.dataset.url) {
+          input.value = el.dataset.url;
+          if (installBtn) window.nav.focus(installBtn);
+        }
+      });
+    });
   }
 
   async loadModules() {
