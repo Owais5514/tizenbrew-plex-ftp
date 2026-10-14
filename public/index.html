@@ -246,6 +246,12 @@
           <input type="text" id="cfg-tmdb" class="form-input focusable" placeholder="Enter TheMovieDB API key for extra 4K movie posters" tabindex="0">
         </div>
 
+        <div class="form-group">
+          <label for="cfg-anilist-client-id">AniList Client ID (for 1-click zero-touch TV login)</label>
+          <input type="text" id="cfg-anilist-client-id" class="form-input focusable" placeholder="e.g. 26840 (Create on anilist.co/settings/developer)" tabindex="0">
+          <span style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">Set Redirect URL on AniList to: <code id="lbl-anilist-redirect-url" style="color: #02a9ff;">http://.../auth/anilist</code></span>
+        </div>
+
         <div class="settings-status-box" id="settings-status-box">
           Ready to connect
         </div>
@@ -270,7 +276,7 @@
         <!-- Vector QR SVG rendered here -->
       </div>
       <div class="qr-link-hint">
-        Or open in phone browser: <strong id="qr-mobile-url">http://...</strong>
+        Or open in browser: <a id="qr-mobile-url" href="#" target="_blank" style="color: #02a9ff; text-decoration: underline;">http://...</a>
       </div>
       <div class="qr-status-pulse">
         <span class="pulse-dot"></span>

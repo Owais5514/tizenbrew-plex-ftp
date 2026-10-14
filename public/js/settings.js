@@ -12,6 +12,8 @@ class SettingsController {
     this.passInput = document.getElementById('cfg-pass');
     this.pathInput = document.getElementById('cfg-path');
     this.tmdbInput = document.getElementById('cfg-tmdb');
+    this.anilistClientInput = document.getElementById('cfg-anilist-client-id');
+    this.anilistRedirectLabel = document.getElementById('lbl-anilist-redirect-url');
     this.statusBox = document.getElementById('settings-status-box');
     this.testBtn = document.getElementById('btn-test-ftp');
     this.saveBtn = document.getElementById('btn-save-settings');
@@ -80,6 +82,12 @@ class SettingsController {
     if (data.password) this.passInput.value = data.password;
     if (data.path) this.pathInput.value = data.path;
     if (data.tmdbApiKey) this.tmdbInput.value = data.tmdbApiKey;
+    if (data.anilistClientId && this.anilistClientInput) this.anilistClientInput.value = data.anilistClientId;
+    if (this.anilistRedirectLabel) {
+      const host = data.lanIp || window.location.hostname || '192.168.1.14';
+      const port = data.port || 8999;
+      this.anilistRedirectLabel.textContent = `http://${host}:${port}/auth/anilist`;
+    }
   }
 
   getFormData() {
@@ -89,7 +97,8 @@ class SettingsController {
       user: this.userInput.value.trim() || 'anonymous',
       password: this.passInput.value,
       path: this.pathInput.value.trim() || '/',
-      tmdbApiKey: this.tmdbInput.value.trim()
+      tmdbApiKey: this.tmdbInput.value.trim(),
+      anilistClientId: this.anilistClientInput ? this.anilistClientInput.value.trim() : ''
     };
   }
 
@@ -178,6 +187,7 @@ class SettingsController {
 
       this.qrContainer.innerHTML = data.qrSvg;
       this.qrUrlText.textContent = data.mobileUrl;
+      this.qrUrlText.href = data.mobileUrl;
       this.qrModal.classList.remove('hidden');
 
       window.nav.focus(this.qrCloseBtn);

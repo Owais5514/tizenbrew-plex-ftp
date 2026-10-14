@@ -58,7 +58,8 @@ function loadSettings() {
     secure: false,
     tmdbApiKey: '',
     directHttpUrl: '',
-    anilistToken: ''
+    anilistToken: '',
+    anilistClientId: ''
   };
 
   try {
@@ -227,7 +228,7 @@ const server = http.createServer(async (req, res) => {
 
     // API: Get Settings
     if (pathname === '/api/settings' && req.method === 'GET') {
-      return sendJson(200, { ...appSettings });
+      return sendJson(200, { ...appSettings, lanIp: getLanIp(), port: PORT });
     }
 
     // API: Save Settings
@@ -429,8 +430,23 @@ const server = http.createServer(async (req, res) => {
     // --- Mobile AniList QR Auth & Verification Page ---
     if (pathname === '/auth/anilist' && req.method === 'GET') {
       const sid = parsedUrl.query.sid || '';
+      const token = parsedUrl.query.token || parsedUrl.query.access_token || '';
+      if (token && sid) {
+        const ok = await anilist.completeAuthSession(sid, token);
+        if (ok) {
+          appSettings.anilistToken = token;
+          saveSettings(appSettings);
+        }
+      }
+      let hostIp = '127.0.0.1';
+      if (req.headers.host) {
+        hostIp = req.headers.host.split(':')[0];
+      }
+      if (hostIp === '127.0.0.1' || hostIp === 'localhost' || hostIp === '::1') {
+        hostIp = getLanIp();
+      }
       res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      return res.end(anilist.getMobileAuthHtml(sid));
+      return res.end(anilist.getMobileAuthHtml(sid, appSettings.anilistClientId || '', hostIp, PORT));
     }
 
     // API: Start AniList Mobile QR Auth Session
@@ -443,7 +459,7 @@ const server = http.createServer(async (req, res) => {
         hostIp = getLanIp();
       }
       const session = anilist.createAuthSession(hostIp, PORT);
-      return sendJson(200, session);
+      return sendJson(200, { ...session, hostIp, port: PORT });
     }
 
     // API: Check AniList Auth Session Status
