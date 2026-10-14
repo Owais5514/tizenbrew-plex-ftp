@@ -140,10 +140,24 @@ class VideoPlayer {
 
   seekRelative(seconds) {
     if (!this.video.duration) return;
-    const target = Math.max(0, Math.min(this.video.duration, this.video.currentTime + seconds));
-    this.video.currentTime = target;
+    if (this._targetSeekTime === undefined || this._targetSeekTime === null) {
+      this._targetSeekTime = this.video.currentTime;
+    }
+    this._targetSeekTime = Math.max(0, Math.min(this.video.duration, this._targetSeekTime + seconds));
+
     this.showSeekIndicator(seconds);
     this.showOsd();
+
+    const errBanner = document.getElementById('player-error-banner');
+    if (errBanner) errBanner.classList.add('hidden');
+
+    clearTimeout(this._seekDebounceTimer);
+    this._seekDebounceTimer = setTimeout(() => {
+      if (this._targetSeekTime !== null) {
+        this.video.currentTime = this._targetSeekTime;
+        this._targetSeekTime = null;
+      }
+    }, 250);
   }
 
   showSeekIndicator(seconds) {

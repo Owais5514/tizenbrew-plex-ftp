@@ -94,6 +94,9 @@ let mediaCache = {
 let isScanning = false;
 let activeScanPromise = null;
 
+// Active streaming session manager (handles browser seek cancellation)
+let activeStreamSession = null;
+
 function createFtpClient(overrideConfig = null) {
   const cfg = overrideConfig || appSettings;
   return new SimpleFtpClient({
@@ -383,12 +386,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // API: Video Streaming Proxy with Exact Capped Chunk Support
+    // API: Video Streaming Proxy with Active Session Abort & Exact Capped Chunk Support
     if (pathname === '/api/stream' && req.method === 'GET') {
       const filePath = parsedUrl.query.file;
       if (!filePath) {
         res.writeHead(400, { 'Content-Type': 'text/plain' });
         return res.end('File path parameter is required');
+      }
+
+      // If a previous stream is still running (e.g. user seeks/skips while playing), abort it first!
+      if (activeStreamSession) {
+        console.log(`[Stream] New range seek arrived (${req.headers.range || 'all'}). Aborting previous stream session to free mobile FTP port...`);
+        activeStreamSession.abort();
+        activeStreamSession = null;
+        await new Promise(r => setTimeout(r, 300));
       }
 
       const ftp = createFtpClient();
@@ -414,7 +425,6 @@ const server = http.createServer(async (req, res) => {
       }
 
       const chunkSize = (end - start) + 1;
-
       console.log(`[Stream] ${isPartial ? 'Range' : 'Full'} request: ${start}-${end}/${totalSize} for ${path.basename(filePath)}`);
 
       let ftpStreamInfo;
@@ -424,11 +434,23 @@ const server = http.createServer(async (req, res) => {
         console.error(`[Stream] Failed to getStream for ${path.basename(filePath)}:`, err.message);
         ftp.destroy();
         if (!res.headersSent) {
-          res.writeHead(503, { 'Content-Type': 'text/plain' });
+          res.writeHead(503, { 'Content-Type': 'text/plain', 'Retry-After': '1' });
           res.end('Streaming proxy busy, please retry');
         }
         return;
       }
+
+      const session = {
+        ftp,
+        stream: ftpStreamInfo.stream,
+        abort: () => {
+          if (ftpStreamInfo.stream && !ftpStreamInfo.stream.destroyed) {
+            ftpStreamInfo.stream.destroy();
+          }
+          ftp.destroy();
+        }
+      };
+      activeStreamSession = session;
 
       res.writeHead(isPartial ? 206 : 200, {
         ...(isPartial ? { 'Content-Range': `bytes ${start}-${end}/${totalSize}` } : {}),
@@ -444,10 +466,10 @@ const server = http.createServer(async (req, res) => {
       const cleanup = () => {
         if (isDone) return;
         isDone = true;
-        if (ftpStreamInfo.stream && !ftpStreamInfo.stream.destroyed) {
-          ftpStreamInfo.stream.destroy();
+        if (activeStreamSession === session) {
+          activeStreamSession = null;
         }
-        ftp.destroy();
+        session.abort();
         if (!res.writableEnded) {
           res.end();
         }
