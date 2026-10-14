@@ -44,6 +44,22 @@ class VideoPlayer {
       }
     });
 
+    this.video.addEventListener('error', (e) => {
+      const err = this.video.error;
+      let msg = 'Playback error occurred';
+      if (err) {
+        switch (err.code) {
+          case 1: msg = 'Playback aborted by user'; break;
+          case 2: msg = 'Network error: could not fetch video stream from FTP'; break;
+          case 3: msg = 'Video decode error: format may be corrupted'; break;
+          case 4: msg = 'Format not supported by browser (codec unsupported)'; break;
+          default: msg = err.message || 'Unknown media error';
+        }
+      }
+      console.error('Video error:', msg, err);
+      this.showErrorBanner(msg);
+    });
+
     // OSD Button clicks
     this.toggleBtn.addEventListener('click', () => this.togglePlayPause());
     this.rewindBtn.addEventListener('click', () => this.seekRelative(-10));
@@ -207,6 +223,9 @@ class VideoPlayer {
     this.video.removeAttribute('src');
     this.video.load();
 
+    const errBanner = document.getElementById('player-error-banner');
+    if (errBanner) errBanner.classList.add('hidden');
+
     this.container.classList.add('hidden');
     this.currentMedia = null;
 
@@ -218,6 +237,19 @@ class VideoPlayer {
     // Restore focus to main view
     const homeBtn = document.getElementById('nav-home');
     window.nav.focus(homeBtn);
+  }
+
+  showErrorBanner(msg) {
+    let errEl = document.getElementById('player-error-banner');
+    if (!errEl) {
+      errEl = document.createElement('div');
+      errEl.id = 'player-error-banner';
+      errEl.style.cssText = 'position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(220,38,38,0.95);color:#fff;padding:24px 38px;border-radius:14px;font-size:18px;font-weight:600;z-index:99999;box-shadow:0 12px 40px rgba(0,0,0,0.8);text-align:center;max-width:80%;line-height:1.5;';
+      this.container.appendChild(errEl);
+    }
+    errEl.innerHTML = `⚠️ ${msg}<br><span style="font-size:14px;font-weight:400;margin-top:10px;opacity:0.85;display:block;">Press Return/Back or Escape to return to menu</span>`;
+    errEl.classList.remove('hidden');
+    this.showOsd();
   }
 
   formatTime(seconds) {

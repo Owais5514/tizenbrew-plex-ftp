@@ -90,6 +90,10 @@ let mediaCache = {
   lastScan: 0
 };
 
+// Scan concurrency lock
+let isScanning = false;
+let activeScanPromise = null;
+
 function createFtpClient(overrideConfig = null) {
   const cfg = overrideConfig || appSettings;
   return new SimpleFtpClient({
@@ -239,33 +243,52 @@ const server = http.createServer(async (req, res) => {
         return sendJson(200, formatLibraryResponse(mediaCache.items));
       }
 
-      const ftp = createFtpClient();
-      try {
-        await ftp.connect();
-        const rootDir = (appSettings.path && appSettings.path !== '/') ? appSettings.path : (ftp.workingDirectory || '/');
-        console.log(`[Scan] Scanning starting from: ${rootDir}`);
-        const rawVideos = await scanFtpDirectory(ftp, rootDir);
-        ftp.destroy();
+      if (isScanning && activeScanPromise) {
+        console.log('[Scan] Scan already in progress, awaiting result...');
+        const existingResult = await activeScanPromise;
+        return sendJson(200, existingResult);
+      }
 
-        if (appSettings.tmdbApiKey) {
-          for (const item of rawVideos) {
-            const meta = await tmdb.search(item.title, item.year, item.isTvShow);
-            if (meta) {
-              item.overview = meta.overview;
-              item.rating = meta.rating;
-              item.posterUrl = meta.posterUrl;
-              item.backdropUrl = meta.backdropUrl;
+      isScanning = true;
+      activeScanPromise = (async () => {
+        const ftp = createFtpClient();
+        try {
+          await ftp.connect();
+          const rootDir = (appSettings.path && appSettings.path !== '/') ? appSettings.path : (ftp.workingDirectory || '/');
+          console.log(`[Scan] Scanning starting from: ${rootDir}`);
+          const rawVideos = await scanFtpDirectory(ftp, rootDir);
+          ftp.destroy();
+
+          if (appSettings.tmdbApiKey) {
+            for (const item of rawVideos) {
+              const meta = await tmdb.search(item.title, item.year, item.isTvShow);
+              if (meta) {
+                item.overview = meta.overview;
+                item.rating = meta.rating;
+                item.posterUrl = meta.posterUrl;
+                item.backdropUrl = meta.backdropUrl;
+              }
             }
           }
+
+          mediaCache.items = rawVideos;
+          mediaCache.lastScan = Date.now();
+
+          console.log(`[Scan] Completed! Found ${rawVideos.length} total videos.`);
+          return formatLibraryResponse(rawVideos);
+        } catch (err) {
+          ftp.destroy();
+          throw err;
+        } finally {
+          isScanning = false;
+          activeScanPromise = null;
         }
+      })();
 
-        mediaCache.items = rawVideos;
-        mediaCache.lastScan = Date.now();
-
-        console.log(`[Scan] Completed! Found ${rawVideos.length} total videos.`);
-        return sendJson(200, formatLibraryResponse(rawVideos));
+      try {
+        const scanResult = await activeScanPromise;
+        return sendJson(200, scanResult);
       } catch (err) {
-        ftp.destroy();
         return sendJson(500, { error: `FTP Scan failed: ${err.message}` });
       }
     }
@@ -360,7 +383,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    // API: Video Streaming Proxy with HTTP Range Requests
+    // API: Video Streaming Proxy with Exact Capped Chunk Support
     if (pathname === '/api/stream' && req.method === 'GET') {
       const filePath = parsedUrl.query.file;
       if (!filePath) {
@@ -377,44 +400,83 @@ const server = http.createServer(async (req, res) => {
       const ext = path.extname(filePath).toLowerCase();
       const contentType = MIME_TYPES[ext] || 'video/mp4';
 
+      let start = 0;
+      let end = totalSize > 0 ? totalSize - 1 : 0;
+      let isPartial = false;
+
       if (rangeHeader) {
         const parts = rangeHeader.replace(/bytes=/, '').split('-');
-        const start = parseInt(parts[0], 10) || 0;
-        const end = parts[1] ? parseInt(parts[1], 10) : (totalSize > 0 ? totalSize - 1 : start + 10485760);
-        const chunkSize = (end - start) + 1;
-
-        console.log(`[Stream] Range request: ${start}-${end}/${totalSize} for ${path.basename(filePath)}`);
-
-        const ftpStreamInfo = await ftp.getStream(filePath, start);
-
-        res.writeHead(206, {
-          'Content-Range': `bytes ${start}-${end}/${totalSize}`,
-          'Accept-Ranges': 'bytes',
-          'Content-Length': chunkSize,
-          'Content-Type': contentType
-        });
-
-        ftpStreamInfo.stream.pipe(res);
-
-        req.on('close', () => {
-          ftp.destroy();
-        });
-      } else {
-        console.log(`[Stream] Full stream requested for ${path.basename(filePath)}`);
-        const ftpStreamInfo = await ftp.getStream(filePath, 0);
-
-        res.writeHead(200, {
-          'Content-Length': totalSize,
-          'Accept-Ranges': 'bytes',
-          'Content-Type': contentType
-        });
-
-        ftpStreamInfo.stream.pipe(res);
-
-        req.on('close', () => {
-          ftp.destroy();
-        });
+        start = parseInt(parts[0], 10) || 0;
+        if (parts[1]) {
+          end = parseInt(parts[1], 10);
+        }
+        isPartial = true;
       }
+
+      const chunkSize = (end - start) + 1;
+
+      console.log(`[Stream] ${isPartial ? 'Range' : 'Full'} request: ${start}-${end}/${totalSize} for ${path.basename(filePath)}`);
+
+      let ftpStreamInfo;
+      try {
+        ftpStreamInfo = await ftp.getStream(filePath, start, totalSize);
+      } catch (err) {
+        console.error(`[Stream] Failed to getStream for ${path.basename(filePath)}:`, err.message);
+        ftp.destroy();
+        if (!res.headersSent) {
+          res.writeHead(503, { 'Content-Type': 'text/plain' });
+          res.end('Streaming proxy busy, please retry');
+        }
+        return;
+      }
+
+      res.writeHead(isPartial ? 206 : 200, {
+        ...(isPartial ? { 'Content-Range': `bytes ${start}-${end}/${totalSize}` } : {}),
+        'Accept-Ranges': 'bytes',
+        'Content-Length': chunkSize,
+        'Content-Type': contentType,
+        'Connection': 'close'
+      });
+
+      let sent = 0;
+      let isDone = false;
+
+      const cleanup = () => {
+        if (isDone) return;
+        isDone = true;
+        if (ftpStreamInfo.stream && !ftpStreamInfo.stream.destroyed) {
+          ftpStreamInfo.stream.destroy();
+        }
+        ftp.destroy();
+        if (!res.writableEnded) {
+          res.end();
+        }
+      };
+
+      ftpStreamInfo.stream.on('data', (chunk) => {
+        if (isDone) return;
+        const remaining = chunkSize - sent;
+        if (remaining <= 0) {
+          cleanup();
+          return;
+        }
+
+        if (chunk.length <= remaining) {
+          sent += chunk.length;
+          res.write(chunk);
+          if (sent >= chunkSize) {
+            cleanup();
+          }
+        } else {
+          res.write(chunk.slice(0, remaining));
+          sent += remaining;
+          cleanup();
+        }
+      });
+
+      ftpStreamInfo.stream.on('end', cleanup);
+      ftpStreamInfo.stream.on('error', cleanup);
+      req.on('close', cleanup);
       return;
     }
 
